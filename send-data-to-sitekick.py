@@ -50,7 +50,7 @@ def get_token(filename='/etc/plesk/tokens.json'):
             f.write(json.dumps(tokens))
         return token
 
-def get_info(endpoint, args):
+def get_info(endpoint, **kwargs):
     """Get the specified information form the specified end point on the local Plesk server. For information on getting
     Plesk information: https://docs.plesk.com/en-US/obsidian/api-rpc/about-rest-api.79359/"""
     url = f"https://{hostname}:8443/api/v2/{endpoint}"

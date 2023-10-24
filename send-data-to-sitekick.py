@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new

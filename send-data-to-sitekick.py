@@ -8,6 +8,7 @@ import datetime
 import json
 import subprocess
 import socket
+from pathlib import Path
 from pprint import pprint
 
 ## getting the hostname by socket.gethostname() method
@@ -35,6 +36,8 @@ def get_token(filename='/etc/plesk/tokens.json'):
         except:
             tokens = {}
         tokens[hostname] = token
+        # Create paths if necessary:
+        Path(filename).parent.mkdir(parents=True, exist_ok=True)
         with open(filename, 'w') as f:
             f.write(json.dumps(tokens))
 

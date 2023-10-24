@@ -8,6 +8,8 @@ import datetime
 import json
 import subprocess
 import socket
+from pprint import pprint
+
 ## getting the hostname by socket.gethostname() method
 hostname = socket.gethostname()
 ## getting the IP address using socket.gethostbyname() method
@@ -36,3 +38,4 @@ def get_token(filename='/etc/plesk/tokens.json'):
         with open(filename, 'w') as f:
             f.write(json.dumps(tokens))
 
+pprint(get_token())

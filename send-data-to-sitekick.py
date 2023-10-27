@@ -231,7 +231,7 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
     print(f"\n{now()} Sitekick {len(domains)} domains info stored in {queue_path}")
 
 
-def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=10, interval_offset=None, attempts=10):
+def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
     """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
     The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
     ip-address to generate a random offset. This way, the load is spread when a large number of servers (hundreds or
@@ -278,7 +278,7 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=10, interval_of
                 print(f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with code {response.getcode()}: {response.read()}")
             except Exception as e:
                 print(f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with exception: {e}")
-            time.sleep((5 ** (attempt/((attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
+            time.sleep((60 ** (attempt/((attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
     print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
 # Optional change standard functions to get additional or different info:

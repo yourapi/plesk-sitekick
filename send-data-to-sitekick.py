@@ -1,11 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Path: send-data-to-sitekick.py
+# File: send-data-to-sitekick.py
 # The shebang does not work on CentOS plesk servers. Use the following command to run the script:
 # python3 send-data-to-sitekick.py
+# or add it to a crontab to run regularly (for instance every day at 8pm):
+# 0 20 * * * python3 /home/src/plesk-sitekick/send-data-to-sitekick.py
+# assuming the file is located in /home/src/plesk-sitekick
 """
 Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new
 Sitekick-servers are added and that deprecated servers will be cleaned up.
+
+Copyright 2023 Sitekick
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 import datetime
 import json
@@ -19,6 +36,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from uuid import getnode
 
+# This token ONLY has access to two end points: /assets/templates/connectors/*plesk*/content and /client/administration/queues/*plesk*
 PLESK_COMMUNICATION_TOKEN = 'Mq63bc7gj2U7ubF2kohvol0F'
 req = Request('https://sitekick.okapi.online/assets/templates/connectors/plesk/content',
               headers={'Authorization': f'Bearer {PLESK_COMMUNICATION_TOKEN}'})

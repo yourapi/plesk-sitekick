@@ -215,13 +215,13 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
         with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
             f.write(json.dumps(domain_info, indent=4))
         if i % 100 == 0:
-            print(f"{i} {now()}: {domain}", flush=True)
+            print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
         else:
             print('.', end='', flush=True)
-    print(f"\n{now()} {len(domains)} domains info stored in {queue_path}")
+    print(f"\n{now()} Sitekick {len(domains)} domains info stored in {queue_path}")
 
 
-def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=30, interval_offset=None, attempts=10):
+def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
     """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
     The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
     ip-address to generate a random offset. This way, the load is spread when a large number of servers (hundreds or
@@ -259,10 +259,10 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=30, interval_of
                 for file in send_files:
                     file.unlink()
                 total_count += len(send_files)
-                print(f"\n{now()} Pushed {len(send_files)} of {total_count} files to {SITEKICK_PUSH_URL}")
+                print(f"\n{now()} Sitekick pushed {total_count - len(send_files)}:{total_count} files to {SITEKICK_PUSH_URL}")
                 break
             time.sleep((60 ** (attempt/((attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
-    print(f"\n{now()} Pushed total {total_count} files to {SITEKICK_PUSH_URL}")
+    print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
 # Optional change standard functions to get additional or different info:
 exec(code_by_section('push_pull'))

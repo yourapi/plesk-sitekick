@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Black">
+    <option name="executionMode" value="BINARY" />
+    <option name="pathToExecutable" value="C:\data\venv\okapi.framework\Scripts\black.exe" />
+    <option name="sdkUUID" value="5c95473d-cf6c-430e-8a32-70b5efe204b1" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.7.3 WSL (Debian): (/home/okapi/.virtualenvs/Internet.nl/bin/python)" project-jdk-type="Python SDK" />
+</project>

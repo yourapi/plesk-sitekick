@@ -218,9 +218,10 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
             print(f"{i} {now()}: {domain}", flush=True)
         else:
             print('.', end='', flush=True)
+    print(f"\n{now()} {len(domains)} domains info stored in {queue_path}")
 
 
-def push_domains_info(queue_path=QUEUE_PATH, count=2, interval=30, interval_offset=None, attempts=10):
+def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=30, interval_offset=None, attempts=10):
     """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
     The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
     ip-address to generate a random offset. This way, the load is spread when a large number of servers (hundreds or

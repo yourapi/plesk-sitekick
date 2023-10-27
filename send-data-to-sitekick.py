@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 .send-data-to-sitekick.py
 # -*- coding: utf-8 -*-
 # File: send-data-to-sitekick.py
 # The shebang does not work on CentOS plesk servers. Use the following command to run the script:
 # python3 send-data-to-sitekick.py
-# or add it to a crontab to run regularly (for instance every day at 8pm):
-# 0 20 * * * python3 /home/src/plesk-sitekick/send-data-to-sitekick.py
+# or add it to a crontab to run regularly (for instance every day at 2am):
+# 0 2 * * * python3 /home/src/plesk-sitekick/send-data-to-sitekick.py
 # assuming the file is located in /home/src/plesk-sitekick
 """
 Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new
@@ -59,7 +59,7 @@ except:
 
 tokens = {}
 
-QUEUE_PATH = '/var/plesk/cache/to_sitekick/domains'
+QUEUE_PATH = '/tmp/plesk/to_sitekick/domains'
 SITEKICK_PUSH_URL = 'https://sitekick.okapi.online/client/administration/queues/plesk'
 
 def now():

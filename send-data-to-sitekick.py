@@ -12,6 +12,7 @@ import json
 import random
 import socket
 import subprocess
+import threading
 import time
 import yaml
 from pathlib import Path
@@ -21,11 +22,12 @@ from uuid import getnode
 PLESK_COMMUNICATION_TOKEN = 'Mq63bc7gj2U7ubF2kohvol0F'
 req = Request('https://sitekick.okapi.online/assets/templates/connectors/plesk/content',
               headers={'Authorization': f'Bearer {PLESK_COMMUNICATION_TOKEN}'})
-TEMPLATE = yaml.safe_load(urlopen(req).read())
+ADDITIONAL_CODE = yaml.safe_load(urlopen(req).read())
+
 def code_by_section(section):
     """Return the code from the template, defined by the section.
-    The caller must always be able to eval the result blindly, when no code is found, return 'None'."""
-    return TEMPLATE.get(section, {}).get('code', 'None')
+    The caller must always be able to exec the result blindly, when no code is found, return empty string."""
+    return ADDITIONAL_CODE.get(section) or ''
 
 # getting the hostname by socket.gethostname() method
 hostname = socket.gethostname()
@@ -36,12 +38,17 @@ try:
     mac_address = ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2))
 except:
     mac_address = None
+
 tokens = {}
 
 QUEUE_PATH = '/var/plesk/cache/to_sitekick/domains'
+SITEKICK_PUSH_URL = 'https://sitekick.okapi.online/client/administration/queues/plesk'
+
+def now():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # Additional or changed init-data can be added here:
-eval(code_by_section('init'))
+exec(code_by_section('init'))
 
 def get_token(filename='/etc/plesk/tokens.json'):
     """Get a token for local API access. If it was not generated, generate a new one and store it in a safe location."""
@@ -187,8 +194,8 @@ def get_domain_info(domain):
     domain_info['domain'] = domain
     return domain_info
 
-# Change standard functions to get additional or different info:
-eval(code_by_section('get_domain_info'))
+# Optional change standard functions to get additional or different info:
+exec(code_by_section('get_domain_info'))
 
 
 def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
@@ -208,7 +215,7 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
         with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
             f.write(json.dumps(domain_info, indent=4))
         if i % 100 == 0:
-            print(f"{i} {datetime.datetime.now()}: {domain}", flush=True)
+            print(f"{i} {now()}: {domain}", flush=True)
         else:
             print('.', end='', flush=True)
 
@@ -224,6 +231,7 @@ def push_domains_info(queue_path=QUEUE_PATH, count=2, interval=30, interval_offs
         # Use the server's IP-address as seed te generate a random offset which is nonetheless repeatable:
         random.seed(ip_address)
         interval_offset = random.random() * interval
+    total_count = 0
     while True:
         # Start with waiting to let files enter the directory:
         time_next = (time.time() // interval + 1) * interval + interval_offset
@@ -239,7 +247,7 @@ def push_domains_info(queue_path=QUEUE_PATH, count=2, interval=30, interval_offs
                 data.append(json.loads(f.read()))
         # Now push the data to the Sitekick server, with a maximum `attempts` number of attempts:
         for attempt in range(attempts):
-            req = Request('https://sitekick.okapi.online/client/administration/queues/plesk',
+            req = Request(SITEKICK_PUSH_URL,
                           method='POST', data=json.dumps(data).encode(),
                           headers={'Authorization': f'Bearer {PLESK_COMMUNICATION_TOKEN}',
                                    'Content-Type': 'application/json',
@@ -249,21 +257,25 @@ def push_domains_info(queue_path=QUEUE_PATH, count=2, interval=30, interval_offs
                 # Remove the files from the queue:
                 for file in send_files:
                     file.unlink()
+                total_count += len(send_files)
+                print(f"\n{now()} Pushed {len(send_files)} of {total_count} files to {SITEKICK_PUSH_URL}")
                 break
             time.sleep((60 ** (attempt/((attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
+    print(f"\n{now()} Pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
-url = 'http://sitekick.yourapi.local:5000/client/administration/queues/plesk'
-key = '9ErMUik5RkClSbnanWWYjrEj'
+# Optional change standard functions to get additional or different info:
+exec(code_by_section('push_pull'))
 
+# Now let the two functions (get_domains_info and push_domains_info) run in parallel:
+threads = [
+    threading.Thread(target=get_domains_info),
+    threading.Thread(target=push_domains_info)
+]
+for thread in threads:
+    thread.start()
 
-data = [{'General': {'Domain ID': '2', 'Domain name': 'elastic-mcnulty.145-131-8-226.plesk.page', "Owner's contact name": 'Administrator (admin)', 'Domain status': 'OK', 'Creation date': 'Oct 24, 2023', 'Expiration date': 'Unlimited', 'Disk space limit': 'Unlimited', 'Size': '228 KB', 'Total size of backup files in local storage': '0 B', 'Traffic limit': 'Unlimited', 'Traffic': '209 KB/Month', 'Description': '', 'Description for the administrator': '', 'External ID': ''}, 'Hosting': {'Hosting type': 'Physical hosting', 'IP Address': '145.131.8.226', 'FTP Login': 'elastic-mcnulty_ug55bnvj0nf', 'FTP Password': '************', "SSH access to the server shell under the subscription's system user": '/bin/false', 'Hard disk quota': 'Unlimited (not supported)', 'Disk space used by httpdocs': '76.0 KB', 'Disk space used by Log files and statistical reports': '76.0 KB', 'Certificate': 'Lets Encrypt elastic-mcnulty.145-131-8-226.plesk.page', 'SSL/TLS support': 'On', 'Permanent SEO-safe 301 redirect from HTTP to HTTPS': 'On', 'SSI support': 'No', 'PHP support': 'Yes', 'CGI support': 'No', 'Perl support': 'No', 'Python support': 'No', 'FastCGI support': 'Yes', 'Custom error documents': 'Yes', 'Web statistics': 'AWStats', 'Anonymous FTP': 'No', 'Disk space used by Anonymous FTP': '0 B'}, 'Web Users': {'Total': '0', 'SSI support': '0', 'PHP support': '0', 'CGI support': '0', 'Perl support': '0', 'Python support': '0', 'FastCGI support': '0', 'Total size': '0 B'}, 'Mail Accounts': {'Mail service': 'On', 'Total': '4', 'Access to Plesk': '0', 'Mailboxes': '4', 'Mail forwardings': '0', 'Auto-replies': '0', 'Total size': '64.0 KB', 'Mail autodiscover': 'On'}, 'Mailing Lists': {'Mailing list service': 'Off', 'Total': '0', 'Total size': '0 B'}, 'Databases': {'Total': '2', 'Total size': '8.00 KB'}, 'Web Applications': {'Total': '0'}, 'Logrotation info': {'Log rotation status': 'On', 'Log rotation condition': '10240KB (by size)', 'Maximum number of log files': '10', 'Compress log files': 'true', 'Send processed log files to email': '', '--WWW-Root--': '/var/www/vhosts/elastic-mcnulty.145-131-8-226.plesk.page/httpdocs'}, 'Subscription Information': {'SUCCESS': "Gathering information for 'elastic-mcnulty.145-131-8-226.plesk.page' completed."}, 'Server': {'Hostname': 'beautiful-greider.145-131-8-226.plesk.page', 'IP-address': '145.131.8.226'}}, {'General': {'Domain ID': '3', 'Domain name': 'relaxed-hertz.145-131-8-226.plesk.page', "Owner's contact name": 'Administrator (admin)', 'Domain status': 'OK', 'Creation date': 'Oct 24, 2023', 'Expiration date': 'Unlimited', 'Disk space limit': 'Unlimited', 'Size': '188 KB', 'Total size of backup files in local storage': '0 B', 'Traffic limit': 'Unlimited', 'Traffic': '186 KB/Month', 'Description': '', 'Description for the administrator': '', 'External ID': ''}, 'Hosting': {'Hosting type': 'Physical hosting', 'IP Address': '145.131.8.226', 'FTP Login': 'relaxed-hertz_zli2qm0354', 'FTP Password': '************', "SSH access to the server shell under the subscription's system user": '/bin/false', 'Hard disk quota': 'Unlimited (not supported)', 'Disk space used by httpdocs': '76.0 KB', 'Disk space used by Log files and statistical reports': '76.0 KB', 'Certificate': 'Lets Encrypt relaxed-hertz.145-131-8-226.plesk.page', 'SSL/TLS support': 'On', 'Permanent SEO-safe 301 redirect from HTTP to HTTPS': 'On', 'SSI support': 'No', 'PHP support': 'Yes', 'CGI support': 'No', 'Perl support': 'No', 'Python support': 'No', 'FastCGI support': 'Yes', 'Custom error documents': 'Yes', 'Web statistics': 'AWStats', 'Anonymous FTP': 'No', 'Disk space used by Anonymous FTP': '0 B'}, 'Web Users': {'Total': '0', 'SSI support': '0', 'PHP support': '0', 'CGI support': '0', 'Perl support': '0', 'Python support': '0', 'FastCGI support': '0', 'Total size': '0 B'}, 'Mail Accounts': {'Mail service': 'On', 'Total': '2', 'Access to Plesk': '0', 'Mailboxes': '2', 'Mail forwardings': '0', 'Auto-replies': '0', 'Total size': '32.0 KB', 'Mail autodiscover': 'On'}, 'Mailing Lists': {'Mailing list service': 'Off', 'Total': '0', 'Total size': '0 B'}, 'Databases': {'Total': '0', 'Total size': '0 B'}, 'Web Applications': {'Total': '0'}, 'Logrotation info': {'Log rotation status': 'On', 'Log rotation condition': '10240KB (by size)', 'Maximum number of log files': '10', 'Compress log files': 'true', 'Send processed log files to email': '', '--WWW-Root--': '/var/www/vhosts/relaxed-hertz.145-131-8-226.plesk.page/httpdocs'}, 'Subscription Information': {'SUCCESS': "Gathering information for 'relaxed-hertz.145-131-8-226.plesk.page' completed."}, 'Server': {'Hostname': 'beautiful-greider.145-131-8-226.plesk.page', 'IP-address': '145.131.8.226'}}]
-url = 'https://sitekick.okapi.online/client/administration/queues/plesk'
-key = 'JUZ0birYPtBJZlZ6g9z7qwA3'
+for thread in threads:
+    thread.join()
 
-req = Request(url,
-              method='POST', data=json.dumps(data).encode(),
-              headers={'Authorization': f'Bearer {key}',
-                       'Content-Type': 'application/json',
-                       'Accept': 'application/json'})
-response = urlopen(req)
-result = response.read()
+# Any cleanup, additional or changed actions can be added here:
+exec(code_by_section('finalize'))

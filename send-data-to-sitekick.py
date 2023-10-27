@@ -211,7 +211,17 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
             filename.unlink()
     # Get detailed information per domain and store it in the file system.
     for i, domain in enumerate(domains):
-        domain_info = get_domain_info(domain)
+        domain_info = None
+        for attempt in range(10):
+            try:
+                domain_info = get_domain_info(domain)
+                break
+            except Exception as e:
+                print(f"{now()} Sitekick get_domain_info attempt {attempt + 1} of 10 for {domain} failed with exception: {e}")
+                time.sleep((5 ** (attempt/9)))
+        if domain_info is None:
+            print(f"{now()} Sitekick get_domain_info for {domain} failed 10 times, skipping this domain")
+            continue
         with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
             f.write(json.dumps(domain_info, indent=4))
         if i % 100 == 0:
@@ -221,7 +231,7 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
     print(f"\n{now()} Sitekick {len(domains)} domains info stored in {queue_path}")
 
 
-def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
+def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=10, interval_offset=None, attempts=10):
     """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
     The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
     ip-address to generate a random offset. This way, the load is spread when a large number of servers (hundreds or
@@ -233,6 +243,7 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
         random.seed(ip_address)
         interval_offset = random.random() * interval
     total_count = 0
+    send_files_previous = []
     while True:
         # Start with waiting to let files enter the directory:
         time_next = (time.time() // interval + 1) * interval + interval_offset
@@ -240,8 +251,10 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
         files_in_queue = list(Path(queue_path).glob('*'))
         files_in_queue.sort(key=lambda file: file.name)
         send_files = files_in_queue[:count]
-        if not files_in_queue:
+        if not send_files or set(send_files) == set(send_files_previous):
+            # No more files or no new files, stop pushing:
             break
+        send_files_previous = send_files
         data = []
         for file in send_files:
             with file.open() as f:

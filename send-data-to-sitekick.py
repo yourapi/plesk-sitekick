@@ -1,11 +1,28 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 .send-data-to-sitekick.py
 # -*- coding: utf-8 -*-
-# Path: send-data-to-sitekick.py
+# File: send-data-to-sitekick.py
 # The shebang does not work on CentOS plesk servers. Use the following command to run the script:
 # python3 send-data-to-sitekick.py
+# or add it to a crontab to run regularly (for instance every day at 2am):
+# 0 2 * * * python3 /home/src/plesk-sitekick/send-data-to-sitekick.py
+# assuming the file is located in /home/src/plesk-sitekick
 """
 Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new
 Sitekick-servers are added and that deprecated servers will be cleaned up.
+
+Copyright 2023 Sitekick
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 import datetime
 import json
@@ -19,6 +36,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from uuid import getnode
 
+# This token ONLY has access to two end points: /assets/templates/connectors/*plesk*/content and /client/administration/queues/*plesk*
 PLESK_COMMUNICATION_TOKEN = 'Mq63bc7gj2U7ubF2kohvol0F'
 req = Request('https://sitekick.okapi.online/assets/templates/connectors/plesk/content',
               headers={'Authorization': f'Bearer {PLESK_COMMUNICATION_TOKEN}'})
@@ -41,7 +59,7 @@ except:
 
 tokens = {}
 
-QUEUE_PATH = '/var/plesk/cache/to_sitekick/domains'
+QUEUE_PATH = '/tmp/plesk/to_sitekick/domains'
 SITEKICK_PUSH_URL = 'https://sitekick.okapi.online/client/administration/queues/plesk'
 
 def now():
@@ -211,17 +229,27 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
             filename.unlink()
     # Get detailed information per domain and store it in the file system.
     for i, domain in enumerate(domains):
-        domain_info = get_domain_info(domain)
+        domain_info = None
+        for attempt in range(10):
+            try:
+                domain_info = get_domain_info(domain)
+                break
+            except Exception as e:
+                print(f"{now()} Sitekick get_domain_info attempt {attempt + 1} of 10 for {domain} failed with exception: {e}")
+                time.sleep((5 ** (attempt/9)))
+        if domain_info is None:
+            print(f"{now()} Sitekick get_domain_info for {domain} failed 10 times, skipping this domain")
+            continue
         with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
             f.write(json.dumps(domain_info, indent=4))
         if i % 100 == 0:
-            print(f"{i} {now()}: {domain}", flush=True)
+            print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
         else:
             print('.', end='', flush=True)
-    print(f"\n{now()} {len(domains)} domains info stored in {queue_path}")
+    print(f"\n{now()} Sitekick {len(domains)} domains info stored in {queue_path}")
 
 
-def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=30, interval_offset=None, attempts=10):
+def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
     """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
     The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
     ip-address to generate a random offset. This way, the load is spread when a large number of servers (hundreds or
@@ -233,6 +261,7 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=30, interval_of
         random.seed(ip_address)
         interval_offset = random.random() * interval
     total_count = 0
+    send_files_previous = []
     while True:
         # Start with waiting to let files enter the directory:
         time_next = (time.time() // interval + 1) * interval + interval_offset
@@ -240,8 +269,10 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=30, interval_of
         files_in_queue = list(Path(queue_path).glob('*'))
         files_in_queue.sort(key=lambda file: file.name)
         send_files = files_in_queue[:count]
-        if not files_in_queue:
+        if not send_files or set(send_files) == set(send_files_previous):
+            # No more files or no new files, stop pushing:
             break
+        send_files_previous = send_files
         data = []
         for file in send_files:
             with file.open() as f:
@@ -253,16 +284,20 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=30, interval_of
                           headers={'Authorization': f'Bearer {PLESK_COMMUNICATION_TOKEN}',
                                    'Content-Type': 'application/json',
                                    'Accept': 'application/json'})
-            response = urlopen(req)
-            if 200 <= response.getcode() < 300:
-                # Remove the files from the queue:
-                for file in send_files:
-                    file.unlink()
-                total_count += len(send_files)
-                print(f"\n{now()} Pushed {len(send_files)} of {total_count} files to {SITEKICK_PUSH_URL}")
-                break
+            try:
+                response = urlopen(req)
+                if 200 <= response.getcode() < 300:
+                    # Remove the files from the queue:
+                    for file in send_files:
+                        file.unlink()
+                    total_count += len(send_files)
+                    print(f"\n{now()} Sitekick pushed {total_count - len(send_files)}:{total_count} files to {SITEKICK_PUSH_URL}")
+                    break
+                print(f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with code {response.getcode()}: {response.read()}")
+            except Exception as e:
+                print(f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with exception: {e}")
             time.sleep((60 ** (attempt/((attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
-    print(f"\n{now()} Pushed total {total_count} files to {SITEKICK_PUSH_URL}")
+    print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
 # Optional change standard functions to get additional or different info:
 exec(code_by_section('push_pull'))

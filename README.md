@@ -15,4 +15,7 @@ can be executed by calling python3, followed by the script name. The script has 
 2. To run the script, run: `python3 /usr/local/src/send-data-to-sitekick.py`
 
 ## Configuration
-The script requires no configuration. It stores files temporarily in the `/tmp/` directory. The script can be run
+The script requires no configuration. It stores files temporarily in the `/tmp/plesk/to_sitekick/domains` directory.
+This location can be adjusted by changing the `QUEUE_PATH` variable in the script.
+
+## Architecture

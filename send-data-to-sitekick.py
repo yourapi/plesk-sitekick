@@ -253,14 +253,18 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
                           headers={'Authorization': f'Bearer {PLESK_COMMUNICATION_TOKEN}',
                                    'Content-Type': 'application/json',
                                    'Accept': 'application/json'})
-            response = urlopen(req)
-            if 200 <= response.getcode() < 300:
-                # Remove the files from the queue:
-                for file in send_files:
-                    file.unlink()
-                total_count += len(send_files)
-                print(f"\n{now()} Sitekick pushed {total_count - len(send_files)}:{total_count} files to {SITEKICK_PUSH_URL}")
-                break
+            try:
+                response = urlopen(req)
+                if 200 <= response.getcode() < 300:
+                    # Remove the files from the queue:
+                    for file in send_files:
+                        file.unlink()
+                    total_count += len(send_files)
+                    print(f"\n{now()} Sitekick pushed {total_count - len(send_files)}:{total_count} files to {SITEKICK_PUSH_URL}")
+                    break
+                print(f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} failed with code {response.getcode()}: {response.read()}")
+            except Exception as e:
+                print(f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} failed with exception: {e}")
             time.sleep((60 ** (attempt/((attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
     print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 

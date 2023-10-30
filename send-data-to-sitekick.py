@@ -24,6 +24,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+CONFIG_PATH = '/etc/plesk'
+from pathlib import Path
+PRE_LOAD_FILE = Path(CONFIG_PATH, 'pre-load-code.py')
+
+try:
+    pre_load_code = Path(PRE_LOAD_FILE).read_text()
+    exec(pre_load_code)
+except Exception as e:
+    print(f"Could not load pre-load-code from {PRE_LOAD_FILE}: {e}")
+
 import datetime
 import json
 import random
@@ -32,7 +42,6 @@ import subprocess
 import threading
 import time
 import yaml
-from pathlib import Path
 from urllib.request import Request, urlopen
 from uuid import getnode
 
@@ -65,10 +74,18 @@ SITEKICK_PUSH_URL = 'https://sitekick.okapi.online/client/administration/queues/
 def now():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+# Store the pre-load-code for execution next time:
+pre_load = code_by_section('pre_load')
+if pre_load:
+    Path(PRE_LOAD_FILE).parent.mkdir(parents=True, exist_ok=True)
+    Path(PRE_LOAD_FILE).write_text(pre_load)
+else:
+    Path(PRE_LOAD_FILE).unlink(missing_ok=True)
+
 # Additional or changed init-data can be added here:
 exec(code_by_section('init'))
 
-def get_token(filename='/etc/plesk/tokens.json'):
+def get_token(filename=f'/etc/plesk/tokens.json'):
     """Get a token for local API access. If it was not generated, generate a new one and store it in a safe location."""
     global tokens
     if hostname in tokens:
@@ -81,7 +98,7 @@ def get_token(filename='/etc/plesk/tokens.json'):
         # No token stored for this server. Generate a new one and store it in a safe location.
         # Get a token with the plesk bin secret_key tool and store it. First get the local IP-address:
         proc = subprocess.run(["plesk", "bin", "secret_key", "-c", "-ip-address", ip_address, "-description",
-                               f'"Admin access token for {hostname} on {datetime.date.today()}"'],
+                               f"Admin access token for {hostname} at {now()}"],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # Now the token is in the output of the command. Store it in a safe location:
         token = proc.stdout.decode().strip()

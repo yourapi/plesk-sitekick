@@ -9,6 +9,8 @@ from package.server_info import ip_address, hostname, mac_address
 
 __all__ = ['get_domains', 'get_domain_info']
 
+tokens = dict()
+
 def get_token(filename=f'/etc/plesk/tokens.json'):
     """Get a token for local API access. If it was not generated, generate a new one and store it in a safe location."""
     global tokens

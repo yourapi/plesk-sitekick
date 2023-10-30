@@ -38,8 +38,6 @@ from package.utils import now
 
 from package.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN
 
-tokens = {}
-
 SITEKICK_PUSH_URL = 'https://sitekick.okapi.online/client/administration/queues/plesk'
 
 # Additional or changed init-data can be added here:

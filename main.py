@@ -1,10 +1,10 @@
-#!/usr/bin/env python3 .send_data_to_sitekick.py
+#!/usr/bin/env python3 .main.py
 # -*- coding: utf-8 -*-
-# File: send_data_to_sitekick.py
+# File: main.py
 # The shebang does not work on CentOS plesk servers. Use the following command to run the script:
-# python3 send_data_to_sitekick.py
+# python3 main.py
 # or add it to a crontab to run regularly (for instance every day at 2am):
-# 0 2 * * * python3 /home/src/plesk-sitekick/send_data_to_sitekick.py
+# 0 2 * * * python3 /home/src/plesk-sitekick/main.py
 # assuming the file is located in /home/src/plesk-sitekick
 """
 Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new
@@ -24,7 +24,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import datetime
 import json
 import random
 import threading
@@ -32,12 +31,12 @@ import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from dynamic_code import code_by_section
-from providers.plesk import get_domains, get_domain_info
-from server_info import ip_address
-from utils import now
+from package.dynamic_code import code_by_section
+from package.providers.plesk import get_domains, get_domain_info
+from package.server_info import ip_address
+from package.utils import now
 
-from .config import CONFIG_PATH, QUEUE_PATH, PLESK_COMMUNICATION_TOKEN
+from package.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN
 
 tokens = {}
 

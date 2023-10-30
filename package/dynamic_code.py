@@ -3,7 +3,7 @@ from urllib.request import urlopen, Request
 
 import yaml
 
-from .config import CONFIG_PATH, PLESK_COMMUNICATION_TOKEN
+from package.config import CONFIG_PATH, PLESK_COMMUNICATION_TOKEN
 
 __all__ = ['code_by_section']
 

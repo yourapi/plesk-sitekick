@@ -7,9 +7,22 @@ from urllib.request import Request, urlopen
 from package.utils import now
 from package.server_info import ip_address, hostname, mac_address
 
-__all__ = ['get_domains', 'get_domain_info']
+__all__ = ['is_server_type', 'get_domains', 'get_domain_info']
 
 tokens = dict()
+
+
+def is_server_type():
+    """Returns True-ish if the server on which the server is running, is of the specified type.
+    Any non-False suffices, but extra information (like the server type and version) can be returned.
+    E.g. when on a plesk-server the code `providers.plesk.is_server_type() is called, it returns a string with
+    the version info."""
+    try:
+        # By calling the cli-command, the whole plesk-calling-infrastructure is tested. If it fails, return False
+        return get_info_cli('version')
+    except:
+        return False
+
 
 def get_token(filename=f'/etc/plesk/tokens.json'):
     """Get a token for local API access. If it was not generated, generate a new one and store it in a safe location."""

@@ -33,13 +33,12 @@ from urllib.request import Request, urlopen
 
 from package.dynamic_code import code_by_section
 from package.providers.plesk import get_domains, get_domain_info
-from package.server_info import ip_address
+from package.server_info import ip_address, hostname
 from package.utils import now
 
-from package.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN
+from package.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
 
-SITEKICK_PUSH_URL = 'https://sitekick.okapi.online/client/administration/queues/plesk'
-
+hostname # Used in dynamic code, do not remove
 # Additional or changed init-data can be added here:
 exec(code_by_section('init'))
 

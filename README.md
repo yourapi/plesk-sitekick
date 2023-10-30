@@ -8,6 +8,9 @@ Sitekick is a domain analysis and monitoring service that provides a comprehensi
 Sitekick is used by major hosters for a number of applications: analysis, marketing, retention, monitoring, and more.
 A major source of data is the actual hosting data, as it is provisioned by the hoster. 
 This repository provides a simple way to connect any hosting server to Sitekick in a secure way.
+A major source of data is the actual hosting data, as it is provisioned by the hoster. One of the largest hosting
+platforms is Plesk. 
+This repository provides a simple way to connect a Plesk server to Sitekick in a secure way.
 
 ## Installation
 The file is a Python (3.5+) compatible script. It can be run on any Plesk server that has Python installed. The script

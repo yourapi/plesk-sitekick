@@ -18,8 +18,8 @@ def is_server_type():
     E.g. when on a plesk-server the code `providers.plesk.is_server_type() is called, it returns a string with
     the version info."""
     try:
-        # By calling the cli-command, the whole plesk-calling-infrastructure is tested. If it fails, return False
-        return get_info_cli('version')
+        # By calling the api, the whole plesk-calling-infrastructure is tested. If it fails, return False
+        return get_info_api('server')
     except:
         return False
 
@@ -88,7 +88,7 @@ def get_info_cli(command, *args):
 
 def convert_domain_text_to_json(domain_info_lines: list) -> dict:
     """Get the domain info as a number of lines and convert it to Python dict structure. An example of the text output:
-    General
+General
 =============================
 Domain name:                            sitekick.eu
 Owner's contact name:                   Administrator (admin)

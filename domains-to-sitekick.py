@@ -71,6 +71,11 @@ def load_code(root_path=None):
 
 # First, get the code from the Sitekick server and refresh all code:
 load_code(Path(__file__).parent)
+# Add the path of this directory to the sys.path, to enable finding the modules
+import sys
+module_path = str(Path(__file__).parent)
+if module_path not in sys.path:
+    sys.path.append(module_path)
 # Now the code is bootstrapped, import the main module and run it:
-from .main import main
+from main import main
 main()

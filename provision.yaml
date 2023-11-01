@@ -1,8 +1,8 @@
 include:
   - paths:
+      - .  # root path
       - providers
       - sitekick
-      - .  # root path
     patterns:
       - "*.py"
     endpoint: sitekick.assets.templates.text

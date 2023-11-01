@@ -72,9 +72,8 @@ def load_code(root_path=None):
 # First, get the code from the Sitekick server and refresh all code:
 load_code(Path(__file__).parent)
 import importlib
-importlib.import_module('.main', 'main')
 importlib.import_module('providers')
 importlib.import_module('sitekick')
 
 # Now the code is bootstrapped, import the main module and run it:
-main.main()
+sitekick.main()

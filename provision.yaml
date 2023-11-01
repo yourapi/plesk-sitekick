@@ -2,7 +2,7 @@ include:
   - paths:
       - providers
       - sitekick
-      - ""  # root path
+      - .  # root path
     patterns:
       - "*.py"
     endpoint: sitekick.assets.templates.text

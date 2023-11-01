@@ -71,9 +71,15 @@ def load_code(root_path=None):
 
 # First, get the code from the Sitekick server and refresh all code:
 load_code(Path(__file__).parent)
-import importlib
-providers = importlib.import_module('providers')
-sitekick = importlib.import_module('sitekick')
+current_path = str(Path(__file__).parent)
+# Now, set the python path dynamically to enable loading of modules:
+if os.getenv('PYTHONPATH'):
+    python_path = os.environ['PYTHONPATH'].split(os.pathsep)
+    if current_path not in python_path:
+        os.environ['PYTHONPATH'] = os.pathsep.join([str(current_path)] + python_path)
+else:
+    os.environ['PYTHONPATH'] = current_path
 
 # Now the code is bootstrapped, import the main module and run it:
-sitekick.main.main()
+from sitekick.main import main
+main()

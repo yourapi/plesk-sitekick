@@ -24,6 +24,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import os
+
+# First, get the code from the Sitekick server and refresh all code:
+from pathlib import Path
+from sitekick.download import load_code
+load_code(Path(__file__).parent)
+
 import json
 import random
 import threading
@@ -31,15 +38,12 @@ import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from sitekick.dynamic_code import code_by_section
 from sitekick.server_info import ip_address, hostname
 from sitekick.utils import now
 
 from sitekick.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
 
 hostname # Used in dynamic code, do not remove
-# Additional or changed init-data can be added here:
-exec(code_by_section('init'))
 
 
 # Get a list of filenames for the providers and see which ones are appropriate:
@@ -144,8 +148,6 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
     print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
 
-# Optional change standard functions to get additional or different info:
-exec(code_by_section('push_pull'))
 
 # Now let the two functions (get_domains_info and push_domains_info) run in parallel:
 threads = [
@@ -157,6 +159,3 @@ for thread in threads:
 
 for thread in threads:
     thread.join()
-
-# Any cleanup, additional or changed actions can be added here:
-exec(code_by_section('finalize'))

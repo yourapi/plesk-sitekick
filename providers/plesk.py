@@ -14,14 +14,11 @@ tokens = dict()
 
 def is_server_type():
     """Returns True-ish if the server on which the server is running, is of the specified type.
+    Returns False-ish or raise an error if not the specified type, the error is caught and the result is False-ish.
     Any non-False suffices, but extra information (like the server type and version) can be returned.
     E.g. when on a plesk-server the code `providers.plesk.is_server_type() is called, it returns a string with
     the version info."""
-    try:
-        # By calling the api, the whole plesk-calling-infrastructure is tested. If it fails, return False
-        return get_info_api('server')
-    except:
-        return False
+    return get_info_api('server')
 
 
 def get_token(filename=f'/etc/plesk/tokens.json'):

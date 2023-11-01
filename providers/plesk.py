@@ -4,8 +4,8 @@ from pathlib import Path
 
 from urllib.request import Request, urlopen
 
-from package.utils import now
-from package.server_info import ip_address, hostname, mac_address
+from sitekick.utils import now
+from sitekick.server_info import ip_address, hostname, mac_address
 
 __all__ = ['is_server_type', 'get_domains', 'get_domain_info']
 

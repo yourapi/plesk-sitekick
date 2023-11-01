@@ -1,0 +1,8 @@
+include:
+  - paths:
+      - providers
+      - sitekick
+      - domains-to-sitekick.py
+    patterns:
+      - "*.py"
+    endpoint: sitekick.assets.templates.text

@@ -1,10 +1,10 @@
-#!/usr/bin/env python3 .main.py
+#!/usr/bin/env python3 .domains-to-sitekick.py
 # -*- coding: utf-8 -*-
-# File: main.py
+# File: domains-to-sitekick.py
 # The shebang does not work on CentOS plesk servers. Use the following command to run the script:
-# python3 main.py
+# python3 domains-to-sitekick.py
 # or add it to a crontab to run regularly (for instance every day at 2am):
-# 0 2 * * * python3 /home/src/plesk-sitekick/main.py
+# 0 2 * * * python3 /home/src/plesk-sitekick/domains-to-sitekick.py
 # assuming the file is located in /home/src/plesk-sitekick
 """
 Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new
@@ -31,17 +31,28 @@ import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from package.dynamic_code import code_by_section
-from package.providers.plesk import get_domains, get_domain_info
-from package.server_info import ip_address, hostname
-from package.utils import now
+from sitekick.dynamic_code import code_by_section
+from sitekick.server_info import ip_address, hostname
+from sitekick.utils import now
 
-from package.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
+from sitekick.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
 
 hostname # Used in dynamic code, do not remove
 # Additional or changed init-data can be added here:
 exec(code_by_section('init'))
 
+
+# Get a list of filenames for the providers and see which ones are appropriate:
+def get_providers():
+    """Return a list of providers for which the is_server_type() returns True-ish."""
+    providers = []
+    for filename in Path(__file__).parent.glob('providers/*.py'):
+        if filename.stem == '__init__':
+            continue
+        module = __import__(f"providers.{filename.stem}", fromlist=['is_server_type'])
+        if module.is_server_type():
+            providers.append(module)
+    return providers
 
 def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
     """Get domain info from the local Plesk server and store the data per domain in a file in `queue_path`.

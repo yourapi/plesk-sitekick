@@ -1,6 +1,7 @@
 """Download all code from the sitekick server and store it in the code directory."""
 import json
 import os
+import socket
 from contextlib import suppress
 from pathlib import Path
 from urllib.request import urlopen, Request
@@ -18,7 +19,7 @@ def load_code(root_path=None):
     if not root_path:
         root_path = Path(__file__).parent.parent  # The root path of the server-to-sitekick code, this code is in level 1
     client = root_path.name  # The `client` field is (ab)used to specify the repo-name
-    if hostname == 'XPS17':
+    if socket.gethostname() == 'XPS17':
         root_path /= 'test/code'
     # First get the list of all *.py files from the path recursively:
     existing_files = set(Path(root_path).rglob('*.py'))

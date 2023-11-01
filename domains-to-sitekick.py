@@ -7,8 +7,7 @@
 # 0 2 * * * python3 /home/src/plesk-sitekick/domains-to-sitekick.py
 # assuming the file is located in /home/src/plesk-sitekick
 """
-Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new
-Sitekick-servers are added and that deprecated servers will be cleaned up.
+This file kickstarts the download and execution of the code from the Sitekick server.
 
 Copyright 2023 Sitekick
 
@@ -24,138 +23,54 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import json
 import os
+import socket
+from contextlib import suppress
+from pathlib import Path
+from urllib.request import urlopen, Request
+
+# Include the code fr downloading IN this file, to have a single installable file (easy to install):
+CODE_ENDPOINT = 'https://sitekick.okapi.online/assets/templates/text'
+CODE_BRANCH = 'dev'  # The branch field which is used to get the code from the `text` endpoint
+try:
+    __file__
+except NameError:
+    __file__ = os.path.abspath('domains-to-sitekick.py')
+
+
+def load_code(root_path=None):
+    """Load the code from the sitekick server and store it in the code directory.
+    The code is refreshed when the code is pushed to the Git-repo."""
+    if not root_path:
+        root_path = Path(
+            __file__).parent.parent  # The root path of the server-to-sitekick code, this code is in level 1
+    client = root_path.name  # The `client` field is (ab)used to specify the repo-name
+    if socket.gethostname() == 'XPS17':
+        root_path /= 'test/code'
+    # First get the list of all *.py files from the path recursively:
+    existing_files = set(Path(root_path).rglob('*.py'))
+    req = Request(CODE_ENDPOINT + f"?client={client}&branch={CODE_BRANCH}")
+    files = json.loads(urlopen(req).read())
+    for file in files:
+        try:
+            content = urlopen(Request(file['content'])).read()
+            filename = Path(root_path, file['path'], file['name'])
+            filename.parent.mkdir(parents=True, exist_ok=True)
+            filename.write_bytes(content)
+            with suppress(KeyError):
+                existing_files.remove(filename)
+        except Exception as e:
+            print(f"Download of {file['content']} failed with exception: {e}")
+            continue
+    # Now remove the files which are no longer in the code directory:
+    for filename in existing_files:
+        with suppress(OSError):
+            filename.unlink()
+
 
 # First, get the code from the Sitekick server and refresh all code:
-from pathlib import Path
-from sitekick.download import load_code
 load_code(Path(__file__).parent)
-
-import json
-import random
-import threading
-import time
-from pathlib import Path
-from urllib.request import Request, urlopen
-
-from sitekick.server_info import ip_address, hostname
-from sitekick.utils import now
-
-from sitekick.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
-
-hostname # Used in dynamic code, do not remove
-
-
-# Get a list of filenames for the providers and see which ones are appropriate:
-def get_providers():
-    """Return a list of providers for which the is_server_type() returns True-ish."""
-    providers = []
-    for filename in Path(__file__).parent.glob('providers/*.py'):
-        if filename.stem == '__init__':
-            continue
-        module = __import__(f"providers.{filename.stem}", fromlist=['is_server_type'])
-        if module.is_server_type():
-            providers.append(module)
-    return providers
-
-def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
-    """Get domain info from the local Plesk server and store the data per domain in a file in `queue_path`.
-    From there, the data is periodically pushed to the Sitekick-server."""
-    # Get all domains from the local Plesk server:
-    if domains is None:
-        domains = get_domains()
-    Path(queue_path).mkdir(parents=True, exist_ok=True)
-    # Clear the queue location:
-    if cleanup:
-        for filename in Path(queue_path).glob('*'):
-            filename.unlink()
-    # Get detailed information per domain and store it in the file system.
-    for i, domain in enumerate(domains):
-        domain_info = None
-        for attempt in range(10):
-            try:
-                domain_info = get_domain_info(domain)
-                break
-            except Exception as e:
-                print(
-                    f"{now()} Sitekick get_domain_info attempt {attempt + 1} of 10 for {domain} failed with exception: {e}")
-                time.sleep((5 ** (attempt / 9)))
-        if domain_info is None:
-            print(f"{now()} Sitekick get_domain_info for {domain} failed 10 times, skipping this domain")
-            continue
-        with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
-            f.write(json.dumps(domain_info, indent=4))
-        if i % 100 == 0:
-            print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
-        else:
-            print('.', end='', flush=True)
-    print(f"\n{now()} Sitekick {len(domains)} domains info stored in {queue_path}")
-
-
-def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
-    """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
-    The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
-    ip-address to generate a random offset. This way, the load is spread when a large number of servers (hundreds or
-    even thousands) simultaneously push their data.
-    Push at most `count` files.
-    Continue until no more files are found."""
-    if interval_offset is None:
-        # Use the server's IP-address as seed te generate a random offset which is nonetheless repeatable:
-        random.seed(ip_address)
-        interval_offset = random.random() * interval
-    total_count = 0
-    send_files_previous = []
-    while True:
-        # Start with waiting to let files enter the directory:
-        time_next = (time.time() // interval + 1) * interval + interval_offset
-        time.sleep(
-            max(time_next - time.time(), interval / 2))  # prevent edge cases, always sleep at least half the interval
-        files_in_queue = list(Path(queue_path).glob('*'))
-        files_in_queue.sort(key=lambda file: file.name)
-        send_files = files_in_queue[:count]
-        if not send_files or set(send_files) == set(send_files_previous):
-            # No more files or no new files, stop pushing:
-            break
-        send_files_previous = send_files
-        data = []
-        for file in send_files:
-            with file.open() as f:
-                data.append(json.loads(f.read()))
-        # Now push the data to the Sitekick server, with a maximum `attempts` number of attempts:
-        for attempt in range(attempts):
-            req = Request(SITEKICK_PUSH_URL,
-                          method='POST', data=json.dumps(data).encode(),
-                          headers={'Authorization': f'Bearer {PLESK_COMMUNICATION_TOKEN}',
-                                   'Content-Type': 'application/json',
-                                   'Accept': 'application/json'})
-            try:
-                response = urlopen(req)
-                if 200 <= response.getcode() < 300:
-                    # Remove the files from the queue:
-                    for file in send_files:
-                        file.unlink()
-                    total_count += len(send_files)
-                    print(
-                        f"\n{now()} Sitekick pushed {total_count - len(send_files)}:{total_count} files to {SITEKICK_PUSH_URL}")
-                    break
-                print(
-                    f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with code {response.getcode()}: {response.read()}")
-            except Exception as e:
-                print(
-                    f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with exception: {e}")
-            time.sleep((60 ** (attempt / ((
-                                                  attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
-    print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
-
-
-
-# Now let the two functions (get_domains_info and push_domains_info) run in parallel:
-threads = [
-    threading.Thread(target=get_domains_info),
-    threading.Thread(target=push_domains_info)
-]
-for thread in threads:
-    thread.start()
-
-for thread in threads:
-    thread.join()
+# Now the code is bootstrapped, import the main module and run it:
+from main import main
+main()

@@ -1,10 +1,10 @@
-#!/usr/bin/env python3 .main.py
+#!/usr/bin/env python3 .domains-to-sitekick.py
 # -*- coding: utf-8 -*-
-# File: main.py
+# File: domains-to-sitekick.py
 # The shebang does not work on CentOS plesk servers. Use the following command to run the script:
-# python3 main.py
+# python3 domains-to-sitekick.py
 # or add it to a crontab to run regularly (for instance every day at 2am):
-# 0 2 * * * python3 /home/src/plesk-sitekick/main.py
+# 0 2 * * * python3 /home/src/plesk-sitekick/domains-to-sitekick.py
 # assuming the file is located in /home/src/plesk-sitekick
 """
 Create a token for a Sitekick server, if it does not exist. This file can be executed every day to make sure that new
@@ -28,27 +28,33 @@ import json
 import random
 import threading
 import time
+from importlib import import_module
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.request import urlopen, Request
 
-from package.dynamic_code import code_by_section
-from package.providers.plesk import get_domains, get_domain_info
-from package.server_info import ip_address, hostname
-from package.utils import now
-
-from package.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
-
-hostname # Used in dynamic code, do not remove
-# Additional or changed init-data can be added here:
-exec(code_by_section('init'))
+from sitekick.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
+from sitekick.server_info import ip_address
+from sitekick.utils import now
 
 
-def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
+# Get a list of filenames for the providers and see which ones are appropriate:
+def get_providers():
+    """Return a list of providers for which the is_server_type() returns True-ish."""
+    providers = []
+    for filename in Path(__file__).parent.glob('providers/*.py'):
+        if filename.stem == '__init__':
+            continue
+        module = __import__(f"providers.{filename.stem}", fromlist=['is_server_type'])
+        if module.is_server_type():
+            providers.append(module)
+    return providers
+
+
+def get_domains_info(get_domains, get_domain_info, queue_path=QUEUE_PATH, cleanup=False, show_progress=True, cutoff_lines=100):
     """Get domain info from the local Plesk server and store the data per domain in a file in `queue_path`.
     From there, the data is periodically pushed to the Sitekick-server."""
     # Get all domains from the local Plesk server:
-    if domains is None:
-        domains = get_domains()
+    domains = get_domains() if callable(get_domains) else get_domains
     Path(queue_path).mkdir(parents=True, exist_ok=True)
     # Clear the queue location:
     if cleanup:
@@ -70,11 +76,12 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
             continue
         with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
             f.write(json.dumps(domain_info, indent=4))
-        if i % 100 == 0:
-            print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
-        else:
-            print('.', end='', flush=True)
-    print(f"\n{now()} Sitekick {len(domains)} domains info stored in {queue_path}")
+        if show_progress:
+            if i % cutoff_lines == 0:
+                print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
+            else:
+                print('.', end='', flush=True)
+    print(f"\n{now()} Sitekick info on {len(domains)} domains stored in {queue_path}")
 
 
 def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
@@ -121,31 +128,65 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
                         file.unlink()
                     total_count += len(send_files)
                     print(
-                        f"\n{now()} Sitekick pushed {total_count - len(send_files)}:{total_count} files to {SITEKICK_PUSH_URL}")
+                        f"{now()} Sitekick pushed another {len(send_files)} of {total_count} files so far"
+                        f" to {SITEKICK_PUSH_URL}")
                     break
                 print(
-                    f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with code {response.getcode()}: {response.read()}")
+                    f"{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL}"
+                    f" failed with code {response.getcode()}: {response.read()}")
             except Exception as e:
                 print(
-                    f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with exception: {e}")
-            time.sleep((60 ** (attempt / ((
-                                                  attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
-    print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
+                    f"{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL}"
+                    f" failed with exception: {e}")
+            time.sleep((60 ** (attempt / ((attempts - 1) or 1))))
+            # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
+    print(f"{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
 
-# Optional change standard functions to get additional or different info:
-exec(code_by_section('push_pull'))
+def get_valid_server_modules(root_module='providers'):
+    """Inspect all server modules and see which ones are valid by calling is_server_type(). When the module is valid,
+    it is returned."""
+    valid_modules = []
+    for filename in Path(__file__).parent.parent.glob(f'{root_module}/*.py'):
+        if filename.stem == '__init__':
+            continue
+        try:
+            module = import_module(f"{root_module}.{filename.stem}")
+            # A valid to_sitekick module should have three functions: is_server_type, get_domains and get_domain_info:
+            for function in ['is_server_type', 'get_domains', 'get_domain_info']:
+                if not hasattr(module, function):
+                    raise AttributeError(f"Module {root_module}.{filename.stem} has no function {function}")
+            try:
+                if module.is_server_type():
+                    valid_modules.append(module)
+            except Exception as e:
+                print(f"{root_module}.{filename.stem}.is_server_type(): False ({e})")
+        except Exception as e:
+            print(f"Error importing module {root_module}.{filename.stem}: {e}")
+    return valid_modules
 
-# Now let the two functions (get_domains_info and push_domains_info) run in parallel:
-threads = [
-    threading.Thread(target=get_domains_info),
-    threading.Thread(target=push_domains_info)
-]
-for thread in threads:
-    thread.start()
 
-for thread in threads:
-    thread.join()
+def main():
+    # Now let the two functions (get_domains_info and push_domains_info) run for valid server modules:
+    for module in get_valid_server_modules():
+        push_kwargs = {}
+        if hasattr(module, 'DOMAIN_COUNT_PER_POST'):
+            push_kwargs['count'] = module.DOMAIN_COUNT_PER_POST
+        if hasattr(module, 'DOMAIN_POST_INTERVAL'):
+            push_kwargs['interval'] = module.DOMAIN_POST_INTERVAL
+        if getattr(module, 'EXECUTE_PARALLEL', True):
+            # Default: get domain info and send to sitekick server in parallel
+            threads = [
+                threading.Thread(target=get_domains_info, args=(module.get_domains, module.get_domain_info), kwargs={'cutoff_lines': 1000000000}),
+                threading.Thread(target=push_domains_info, kwargs=push_kwargs)
+            ]
+            for thread in threads:
+                thread.start()
 
-# Any cleanup, additional or changed actions can be added here:
-exec(code_by_section('finalize'))
+            for thread in threads:
+                thread.join()
+        else:
+            # Execute serially:
+            get_domains_info(module.get_domains, module.get_domain_info)
+            push_domains_info(**push_kwargs)
+

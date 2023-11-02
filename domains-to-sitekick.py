@@ -27,6 +27,7 @@ import json
 import os
 import socket
 from contextlib import suppress
+from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen, Request
 
@@ -54,8 +55,12 @@ def load_code(root_path=None):
     files = json.loads(urlopen(req).read())
     for file in files:
         try:
-            content = urlopen(Request(file['content'])).read()
             filename = Path(root_path, file['path'], file['name'])
+            if (filename.exists()
+                    and filename.stat().st_mtime >= datetime.strptime(file['_timestamp_'],
+                                                                      '%Y-%m-%dT%H:%M:%S.%f%z').timestamp()):
+                continue
+            content = urlopen(Request(file['content'])).read()
             filename.parent.mkdir(parents=True, exist_ok=True)
             filename.write_bytes(content)
             with suppress(KeyError):
@@ -64,21 +69,26 @@ def load_code(root_path=None):
             print(f"Download of {file['content']} failed with exception: {e}")
             continue
     # Now remove the files which are no longer in the code directory:
-    for filename in existing_files:
-        with suppress(OSError):
-            filename.unlink()
+    # for filename in existing_files:
+    #     with suppress(OSError):
+    #         filename.unlink()
 
 
 # First, get the code from the Sitekick server and refresh all code:
 load_code(Path(__file__).parent)
 current_path = str(Path(__file__).parent)
+print(f"current path: {current_path}")
+
 # Now, set the python path dynamically to enable loading of modules:
 if os.getenv('PYTHONPATH'):
     python_path = os.environ['PYTHONPATH'].split(os.pathsep)
     if current_path not in python_path:
-        os.environ['PYTHONPATH'] = os.pathsep.join([str(current_path)] + python_path)
+        os.environ['PYTHONPATH'] = os.pathsep.join([current_path] + python_path)
 else:
     os.environ['PYTHONPATH'] = current_path
+
+print(f"python path: {os.environ['PYTHONPATH']}")
+
 
 # Now the code is bootstrapped, import the main module and run it:
 from sitekick.main import main

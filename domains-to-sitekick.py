@@ -56,13 +56,17 @@ def load_code(root_path=None):
     for file in files:
         try:
             filename = Path(root_path, file['path'], file['name'])
+            # Split the time zone; Python 3.5 has no %z parse field:
+            timestamp, offset = file['_timestamp_'].split('+')
+            offset = datetime.strptime(offset, '%H:%M')
+            seconds = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f').timestamp() + offset.hour * 3600 + offset.minute * 60
             if (filename.exists()
-                    and filename.stat().st_mtime >= datetime.strptime(file['_timestamp_'],
-                                                                      '%Y-%m-%dT%H:%M:%S.%f%z').timestamp()):
+                    and filename.stat().st_mtime > seconds):
                 continue
             content = urlopen(Request(file['content'])).read()
             filename.parent.mkdir(parents=True, exist_ok=True)
             filename.write_bytes(content)
+            print('Downloaded', filename)
             with suppress(KeyError):
                 existing_files.remove(filename)
         except Exception as e:
@@ -76,7 +80,7 @@ def load_code(root_path=None):
 
 # First, get the code from the Sitekick server and refresh all code:
 load_code(Path(__file__).parent)
-current_path = str(Path(__file__).parent)
+current_path = str(Path(__file__).parent.absolute())
 print(f"current path: {current_path}")
 
 # Now, set the python path dynamically to enable loading of modules:

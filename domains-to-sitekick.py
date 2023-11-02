@@ -23,10 +23,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import sys
+
+if sys.version_info < (3, 5):
+    print("This script requires Python 3.5+")
+    sys.exit(1)
+
 import json
 import os
 import socket
-import sys
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
@@ -41,8 +46,6 @@ try:
 except NameError:
     __file__ = os.path.abspath('domains-to-sitekick.py')
 
-if sys.version_info < (3, 5):
-    raise RuntimeError("This script requires Python 3.5+")
 
 def load_code(root_path=None):
     """Load the code from the sitekick server and store it in the code directory.
@@ -62,7 +65,8 @@ def load_code(root_path=None):
             # Split the time zone; Python 3.5 has no %z parse field:
             timestamp, offset = file['_timestamp_'].split('+')
             offset = datetime.strptime(offset, '%H:%M')
-            seconds = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f').timestamp() + offset.hour * 3600 + offset.minute * 60
+            seconds = datetime.strptime(timestamp,
+                                        '%Y-%m-%dT%H:%M:%S.%f').timestamp() + offset.hour * 3600 + offset.minute * 60
             if (filename.exists()
                     and filename.stat().st_mtime > seconds):
                 continue

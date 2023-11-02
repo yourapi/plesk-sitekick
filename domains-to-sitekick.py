@@ -34,6 +34,7 @@ from urllib.request import urlopen, Request
 # Include the code fr downloading IN this file, to have a single installable file (easy to install):
 CODE_ENDPOINT = 'https://sitekick.okapi.online/assets/templates/text'
 CODE_BRANCH = 'dev'  # The branch field which is used to get the code from the `text` endpoint
+CODE_REPO = 'server-to-sitekick'
 try:
     __file__
 except NameError:
@@ -46,12 +47,11 @@ def load_code(root_path=None):
     if not root_path:
         root_path = Path(
             __file__).parent.parent  # The root path of the server-to-sitekick code, this code is in level 1
-    client = root_path.name  # The `client` field is (ab)used to specify the repo-name
     if socket.gethostname() == 'XPS17':
         root_path /= 'test/code'
     # First get the list of all *.py files from the path recursively:
     existing_files = set(Path(root_path).rglob('*.py'))
-    req = Request(CODE_ENDPOINT + f"?client={client}&branch={CODE_BRANCH}")
+    req = Request(CODE_ENDPOINT + f"?client={CODE_REPO}&branch={CODE_BRANCH}")
     files = json.loads(urlopen(req).read())
     for file in files:
         try:

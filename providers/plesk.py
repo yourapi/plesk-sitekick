@@ -71,7 +71,6 @@ def get_info_api(endpoint, method=None, data=None):
         except:
             return result
 
-cli_commands = set(get_info_api('cli/commands'))
 
 def get_info_cli(command, *args):
     """Get the specified information form the specified end point on the local Plesk server using the CLI. The CLI is

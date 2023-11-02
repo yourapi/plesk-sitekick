@@ -95,5 +95,3 @@ print(f"python path: {os.environ['PYTHONPATH']}")
 
 
 # Now the code is bootstrapped, import the main module and run it:
-from sitekick.main import main
-main()

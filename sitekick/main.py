@@ -28,6 +28,7 @@ import json
 import random
 import threading
 import time
+from importlib import import_module
 from pathlib import Path
 from urllib.request import urlopen, Request
 
@@ -137,6 +138,30 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
             time.sleep((60 ** (attempt / ((
                                                   attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
     print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
+
+
+def get_valid_server_modules(root_module='providers'):
+    """Inspect all server modules and see which ones are valid by calling is_server_type(). When the module is valid,
+    it is returned."""
+    valid_modules = []
+    for filename in Path(__file__).parent.parent.glob(f'{root_module}/*.py'):
+        if filename.stem == '__init__':
+            continue
+        try:
+            module = import_module(f"{root_module}.{filename.stem}")
+            # A valid to_sitekick module should have three functions: is_server_type, get_domains and get_domain_info:
+            for function in ['is_server_type', 'get_domains', 'get_domain_info']:
+                if not hasattr(module, function):
+                    raise AttributeError(f"Module {root_module}.{filename.stem} has no function {function}")
+            try:
+                if module.is_server_type():
+                    valid_modules.append(module)
+            except Exception as e:
+                print(f"{root_module}.{filename.stem}.is_server_type(): False ({e})")
+        except Exception as e:
+            print(f"Error importing module {root_module}.{filename.stem}: {e}")
+    return valid_modules
+
 
 def main():
     # Now let the two functions (get_domains_info and push_domains_info) run in parallel:

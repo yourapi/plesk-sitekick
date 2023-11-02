@@ -50,12 +50,11 @@ def get_providers():
     return providers
 
 
-def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
+def get_domains_info(get_domains, get_domain_info, queue_path=QUEUE_PATH, cleanup=False, show_progress=True, cutoff_lines=100):
     """Get domain info from the local Plesk server and store the data per domain in a file in `queue_path`.
     From there, the data is periodically pushed to the Sitekick-server."""
     # Get all domains from the local Plesk server:
-    if domains is None:
-        domains = get_domains()
+    domains = get_domains() if callable(get_domains) else get_domains
     Path(queue_path).mkdir(parents=True, exist_ok=True)
     # Clear the queue location:
     if cleanup:
@@ -77,11 +76,12 @@ def get_domains_info(domains=None, queue_path=QUEUE_PATH, cleanup=False):
             continue
         with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
             f.write(json.dumps(domain_info, indent=4))
-        if i % 100 == 0:
-            print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
-        else:
-            print('.', end='', flush=True)
-    print(f"\n{now()} Sitekick {len(domains)} domains info stored in {queue_path}")
+        if show_progress:
+            if i % cutoff_lines == 0:
+                print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
+            else:
+                print('.', end='', flush=True)
+    print(f"\n{now()} Sitekick info on {len(domains)} domains stored in {queue_path}")
 
 
 def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
@@ -128,16 +128,19 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
                         file.unlink()
                     total_count += len(send_files)
                     print(
-                        f"\n{now()} Sitekick pushed {total_count - len(send_files)}:{total_count} files to {SITEKICK_PUSH_URL}")
+                        f"{now()} Sitekick pushed another {len(send_files)} of {total_count} files so far"
+                        f" to {SITEKICK_PUSH_URL}")
                     break
                 print(
-                    f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with code {response.getcode()}: {response.read()}")
+                    f"{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL}"
+                    f" failed with code {response.getcode()}: {response.read()}")
             except Exception as e:
                 print(
-                    f"\n{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL} failed with exception: {e}")
-            time.sleep((60 ** (attempt / ((
-                                                  attempts - 1) or 1))))  # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
-    print(f"\n{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
+                    f"{now()} Sitekick push attempt {attempt + 1} of {attempts} to {SITEKICK_PUSH_URL}"
+                    f" failed with exception: {e}")
+            time.sleep((60 ** (attempt / ((attempts - 1) or 1))))
+            # Exponential backoff, starting with 1 second, ending with 1 minute in the last attempt
+    print(f"{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
 
 def get_valid_server_modules(root_module='providers'):
@@ -164,13 +167,26 @@ def get_valid_server_modules(root_module='providers'):
 
 
 def main():
-    # Now let the two functions (get_domains_info and push_domains_info) run in parallel:
-    threads = [
-        threading.Thread(target=get_domains_info),
-        threading.Thread(target=push_domains_info)
-    ]
-    for thread in threads:
-        thread.start()
+    # Now let the two functions (get_domains_info and push_domains_info) run for valid server modules:
+    for module in get_valid_server_modules():
+        push_kwargs = {}
+        if hasattr(module, 'DOMAIN_COUNT_PER_POST'):
+            push_kwargs['count'] = module.DOMAIN_COUNT_PER_POST
+        if hasattr(module, 'DOMAIN_POST_INTERVAL'):
+            push_kwargs['interval'] = module.DOMAIN_POST_INTERVAL
+        if getattr(module, 'EXECUTE_PARALLEL', True):
+            # Default: get domain info and send to sitekick server in parallel
+            threads = [
+                threading.Thread(target=get_domains_info, args=(module.get_domains, module.get_domain_info), kwargs={'cutoff_lines': 1000000000}),
+                threading.Thread(target=push_domains_info, kwargs=push_kwargs)
+            ]
+            for thread in threads:
+                thread.start()
 
-    for thread in threads:
-        thread.join()
+            for thread in threads:
+                thread.join()
+        else:
+            # Execute serially:
+            get_domains_info(module.get_domains, module.get_domain_info)
+            push_domains_info(**push_kwargs)
+

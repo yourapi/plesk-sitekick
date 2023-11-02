@@ -7,10 +7,10 @@ from urllib.request import Request, urlopen
 from sitekick.utils import now
 from sitekick.server_info import ip_address, hostname, mac_address
 
-__all__ = ['is_server_type', 'get_domains', 'get_domain_info']
-
 tokens = dict()
 
+DOMAIN_COUNT_PER_POST = 200  # number of detailed domain info packages to send per post
+DOMAIN_POST_INTERVAL = 100   # seconds
 
 def is_server_type():
     """Returns True-ish if the server on which the server is running, is of the specified type.

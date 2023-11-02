@@ -26,6 +26,7 @@ limitations under the License.
 import json
 import os
 import socket
+import sys
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
@@ -80,10 +81,9 @@ def load_code(root_path=None):
 
 # First, get the code from the Sitekick server and refresh all code:
 load_code(Path(__file__).parent)
-current_path = str(Path(__file__).parent.absolute())
-print(f"current path: {current_path}")
 
 # Now, set the python path dynamically to enable loading of modules:
+current_path = str(Path(__file__).parent.absolute())
 if os.getenv('PYTHONPATH'):
     python_path = os.environ['PYTHONPATH'].split(os.pathsep)
     if current_path not in python_path:
@@ -91,7 +91,9 @@ if os.getenv('PYTHONPATH'):
 else:
     os.environ['PYTHONPATH'] = current_path
 
-print(f"python path: {os.environ['PYTHONPATH']}")
+# Now the code is bootstrapped, execute the supplied or default command. The command is executed in the commandline
+# module, which dispatches the command to the relevant module/function:
+from sitekick.commandline import parser, execute
 
-
-# Now the code is bootstrapped, import the main module and run it:
+# Now execute the command:
+execute(parser.parse_args())

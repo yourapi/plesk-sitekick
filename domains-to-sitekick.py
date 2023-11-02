@@ -42,8 +42,7 @@ except NameError:
     __file__ = os.path.abspath('domains-to-sitekick.py')
 
 if sys.version_info < (3, 5):
-    print("Python 3.5 or higher is required")
-    sys.exit(1)
+    raise RuntimeError("This script requires Python 3.5+")
 
 def load_code(root_path=None):
     """Load the code from the sitekick server and store it in the code directory.

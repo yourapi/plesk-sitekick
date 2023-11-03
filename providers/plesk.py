@@ -9,7 +9,7 @@ from sitekick.server_info import ip_address, hostname, mac_address
 
 tokens = dict()
 
-DOMAIN_COUNT_PER_POST = 200  # number of detailed domain info packages to send per post
+DOMAIN_COUNT_PER_POST = 201  # number of detailed domain info packages to send per post
 DOMAIN_POST_INTERVAL = 100   # seconds
 
 def is_server_type():

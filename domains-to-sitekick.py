@@ -23,12 +23,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import sys
-
-if sys.version_info < (3, 5):
-    print("This script requires Python 3.5+")
-    sys.exit(1)
-
 import json
 import os
 import socket
@@ -37,7 +31,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen, Request
 
-# Include the code fr downloading IN this file, to have a single installable file (easy to install):
+# Include the code for downloading IN this file, to have a single installable file (easy to install):
 CODE_ENDPOINT = 'https://sitekick.okapi.online/assets/templates/text'
 CODE_BRANCH = 'dev'  # The branch field which is used to get the code from the `text` endpoint
 CODE_REPO = 'server-to-sitekick'

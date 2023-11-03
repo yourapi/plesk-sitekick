@@ -33,8 +33,11 @@ from pathlib import Path
 from urllib.request import urlopen, Request
 
 from sitekick.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
-from sitekick.server_info import ip_address
+from sitekick.server_info import ip_address, hostname
 from sitekick.utils import now
+
+DOMAIN_COUNT_PER_POST = 200  # number of detailed domain info packages to send per post
+DOMAIN_POST_INTERVAL = 100   # seconds
 
 
 # Get a list of filenames for the providers and see which ones are appropriate:
@@ -84,7 +87,8 @@ def get_domains_info(get_domains, get_domain_info, queue_path=QUEUE_PATH, cleanu
     print(f"\n{now()} Sitekick info on {len(domains)} domains stored in {queue_path}")
 
 
-def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_offset=None, attempts=10):
+def push_domains_info(queue_path=QUEUE_PATH, count=DOMAIN_COUNT_PER_POST, interval=DOMAIN_POST_INTERVAL,
+                      interval_offset=None, attempts=10):
     """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
     The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
     ip-address to generate a random offset. This way, the load is spread when a large number of servers (hundreds or
@@ -93,7 +97,7 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
     Continue until no more files are found."""
     if interval_offset is None:
         # Use the server's IP-address as seed te generate a random offset which is nonetheless repeatable:
-        random.seed(ip_address)
+        random.seed(hostname + ip_address + 'push')
         interval_offset = random.random() * interval
     total_count = 0
     send_files_previous = []
@@ -143,7 +147,7 @@ def push_domains_info(queue_path=QUEUE_PATH, count=200, interval=100, interval_o
     print(f"{now()} Sitekick pushed total {total_count} files to {SITEKICK_PUSH_URL}")
 
 
-def get_valid_server_modules(root_module='providers'):
+def get_server_modules(root_module='providers'):
     """Inspect all server modules and see which ones are valid by calling is_server_type(). When the module is valid,
     it is returned."""
     valid_modules = []
@@ -166,15 +170,16 @@ def get_valid_server_modules(root_module='providers'):
     return valid_modules
 
 
-def main():
+def send_domains(domain_count_per_post=None, domain_post_interval=None, execute_parallel=None):
     # Now let the two functions (get_domains_info and push_domains_info) run for valid server modules:
-    for module in get_valid_server_modules():
-        push_kwargs = {}
-        if hasattr(module, 'DOMAIN_COUNT_PER_POST'):
-            push_kwargs['count'] = module.DOMAIN_COUNT_PER_POST
-        if hasattr(module, 'DOMAIN_POST_INTERVAL'):
-            push_kwargs['interval'] = module.DOMAIN_POST_INTERVAL
-        if getattr(module, 'EXECUTE_PARALLEL', True):
+    for module in get_server_modules():
+        count = int(domain_count_per_post if domain_count_per_post is not None \
+            else getattr(module, 'DOMAIN_COUNT_PER_POST') or DOMAIN_COUNT_PER_POST)
+        interval = float(domain_post_interval if domain_post_interval is not None \
+            else getattr(module, 'DOMAIN_POST_INTERVAL') or DOMAIN_POST_INTERVAL)
+        push_kwargs = {'count': count, 'interval': interval}
+        parallel = execute_parallel if execute_parallel is not None else getattr(module, 'EXECUTE_PARALLEL', True)
+        if parallel:
             # Default: get domain info and send to sitekick server in parallel
             threads = [
                 threading.Thread(target=get_domains_info, args=(module.get_domains, module.get_domain_info), kwargs={'cutoff_lines': 1000000000}),

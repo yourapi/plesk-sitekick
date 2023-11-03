@@ -15,7 +15,7 @@ def is_server_type():
 
 def get_domains():
     """Get all domains from the local Plesk server."""
-    return ['sitekick.online', 'sitekick.com', 'sitekick.eu'] * 100
+    return ['a{:03d}.sitekick.online'.format(i) for i in range(100)]
 
 
 def get_domain_info(domain):

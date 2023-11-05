@@ -5,7 +5,7 @@ from importlib import import_module
 from pathlib import Path
 from pprint import pprint
 
-from sitekick.server_info import hostname, ip_address
+from sitekick.utils import hostname, ip_address
 
 
 def install_script():

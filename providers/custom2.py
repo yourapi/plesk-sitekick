@@ -1,5 +1,4 @@
-from sitekick.server_info import ip_address, hostname, mac_address
-from sitekick.utils import now
+from sitekick.utils import now, hostname, ip_address, mac_address
 
 EXECUTE_PARALLEL = False    # whether to execute the get_domains_info() and push_domains_info() calls in parallel
 DOMAIN_COUNT_PER_POST = 20  # number of detailed domain info packages to send per post

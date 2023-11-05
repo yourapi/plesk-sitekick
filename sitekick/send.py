@@ -33,8 +33,7 @@ from pathlib import Path
 from urllib.request import urlopen, Request
 
 from sitekick.config import QUEUE_PATH, PLESK_COMMUNICATION_TOKEN, SITEKICK_PUSH_URL
-from sitekick.server_info import ip_address, hostname
-from sitekick.utils import now
+from sitekick.utils import now, hostname, ip_address
 
 DOMAIN_COUNT_PER_POST = 200  # number of detailed domain info packages to send per post
 DOMAIN_POST_INTERVAL = 100   # seconds

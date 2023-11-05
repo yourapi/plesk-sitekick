@@ -2,7 +2,7 @@ import argparse
 from importlib import import_module
 from pathlib import Path
 from sitekick.send import send_domains
-from sitekick.test import test_modules
+from sitekick.test_providers import test_modules
 from sitekick.install import install_script
 
 parser = argparse.ArgumentParser(

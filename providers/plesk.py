@@ -4,8 +4,7 @@ from pathlib import Path
 
 from urllib.request import Request, urlopen
 
-from sitekick.utils import now
-from sitekick.server_info import ip_address, hostname, mac_address
+from sitekick.utils import now, hostname, ip_address, mac_address
 
 tokens = dict()
 

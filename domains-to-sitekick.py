@@ -3,9 +3,6 @@
 # File: domains-to-sitekick.py
 # The shebang does not work on CentOS plesk servers. Use the following command to run the script:
 # python3 domains-to-sitekick.py
-# or add it to a crontab to run regularly (for instance every day at 2am):
-# 0 2 * * * python3 /home/src/plesk-sitekick/domains-to-sitekick.py
-# assuming the file is located in /home/src/plesk-sitekick
 """
 This file kickstarts the download and execution of the code from the Sitekick server.
 
@@ -26,15 +23,14 @@ limitations under the License.
 import json
 import os
 import socket
-import sys
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen, Request
 
-# Include the code fr downloading IN this file, to have a single installable file (easy to install):
+# Include the code for downloading IN this file, to have a single installable file (easy to install):
 CODE_ENDPOINT = 'https://sitekick.okapi.online/assets/templates/text'
-CODE_BRANCH = 'dev'  # The branch field which is used to get the code from the `text` endpoint
+CODE_BRANCH = 'main'  # The branch field which is used to get the code from the `text` endpoint
 CODE_REPO = 'server-to-sitekick'
 try:
     __file__
@@ -48,10 +44,8 @@ def load_code(root_path=None):
     if not root_path:
         root_path = Path(
             __file__).parent.parent  # The root path of the server-to-sitekick code, this code is in level 1
-    if socket.gethostname() == 'XPS17':
+    if socket.gethostname() == 'XPS17':  # Local testing preventing overwriting of local code
         root_path /= 'test/code'
-    # First get the list of all *.py files from the path recursively:
-    existing_files = set(Path(root_path).rglob('*.py'))
     req = Request(CODE_ENDPOINT + f"?client={CODE_REPO}&branch={CODE_BRANCH}")
     files = json.loads(urlopen(req).read())
     for file in files:
@@ -60,7 +54,8 @@ def load_code(root_path=None):
             # Split the time zone; Python 3.5 has no %z parse field:
             timestamp, offset = file['_timestamp_'].split('+')
             offset = datetime.strptime(offset, '%H:%M')
-            seconds = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f').timestamp() + offset.hour * 3600 + offset.minute * 60
+            seconds = datetime.strptime(timestamp,
+                                        '%Y-%m-%dT%H:%M:%S.%f').timestamp() + offset.hour * 3600 + offset.minute * 60
             if (filename.exists()
                     and filename.stat().st_mtime > seconds):
                 continue
@@ -68,15 +63,9 @@ def load_code(root_path=None):
             filename.parent.mkdir(parents=True, exist_ok=True)
             filename.write_bytes(content)
             print('Downloaded', filename)
-            with suppress(KeyError):
-                existing_files.remove(filename)
         except Exception as e:
             print(f"Download of {file['content']} failed with exception: {e}")
             continue
-    # Now remove the files which are no longer in the code directory:
-    # for filename in existing_files:
-    #     with suppress(OSError):
-    #         filename.unlink()
 
 
 # First, get the code from the Sitekick server and refresh all code:

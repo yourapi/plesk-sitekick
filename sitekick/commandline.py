@@ -1,7 +1,9 @@
 import argparse
 from importlib import import_module
 from pathlib import Path
-from sitekick.main import main
+from sitekick.send import send_domains
+from sitekick.test_providers import test_modules
+from sitekick.install import install_script
 
 parser = argparse.ArgumentParser(
     prog='domains-to-sitekick',
@@ -15,7 +17,15 @@ parser.add_argument('--version', action='version', version='%(prog)s 0.1')
 
 def send(*args):
     """Send the domains to the Sitekick server."""
-    main()
+    send_domains(*args)
+
+def test(*args):
+    """Test the specified provider to see if it is suitable for the local server."""
+    test_modules(*args)
+
+def install(*args):
+    """Make the send-domains-to-sitekick script regularly executable, by setting the cron."""
+    install_script()
 
 def execute(args):
     """Execute the specified command."""

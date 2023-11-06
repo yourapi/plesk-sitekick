@@ -23,7 +23,6 @@ limitations under the License.
 import json
 import os
 import socket
-from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen, Request
@@ -32,6 +31,7 @@ from urllib.request import urlopen, Request
 CODE_ENDPOINT = 'https://sitekick.okapi.online/assets/templates/text'
 CODE_BRANCH = 'main'  # The branch field which is used to get the code from the `text` endpoint
 CODE_REPO = 'server-to-sitekick'
+
 try:
     __file__
 except NameError:

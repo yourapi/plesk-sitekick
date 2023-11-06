@@ -62,27 +62,37 @@ def get_domains_info(get_domains, get_domain_info, queue_path=QUEUE_PATH, cleanu
     if cleanup:
         for filename in Path(queue_path).glob('*'):
             filename.unlink()
-    # Get detailed information per domain and store it in the file system.
+    # Get detailed information per domain and store it in the file system. Skip already seen domains:
+    domains_sent = set()
     for i, domain in enumerate(domains):
-        domain_info = None
-        for attempt in range(10):
-            try:
-                domain_info = get_domain_info(domain)
-                break
-            except Exception as e:
-                print(
-                    f"{now()} Sitekick get_domain_info attempt {attempt + 1} of 10 for {domain} failed with exception: {e}")
-                time.sleep((5 ** (attempt / 9)))
-        if domain_info is None:
-            print(f"{now()} Sitekick get_domain_info for {domain} failed 10 times, skipping this domain")
-            continue
-        with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
-            f.write(json.dumps(domain_info, indent=4))
-        if show_progress:
-            if i % cutoff_lines == 0:
-                print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
-            else:
-                print('.', end='', flush=True)
+        try:
+            # Clean up the domain name
+            domain = domain.strip().lower()
+            if domain in domains_sent:
+                print(f"{now()} Sitekick get_domain_info for {domain} already retrieved, skipping this domain.")
+                continue
+            domain_info = None
+            for attempt in range(10):
+                try:
+                    domain_info = get_domain_info(domain)
+                    break
+                except Exception as e:
+                    print(
+                        f"{now()} Sitekick get_domain_info attempt {attempt + 1} of 10 for {domain} failed with exception: {e}")
+                    time.sleep((5 ** (attempt / 9)))
+            if domain_info is None:
+                print(f"{now()} Sitekick get_domain_info for {domain} failed 10 times, skipping this domain")
+                continue
+            with Path(queue_path, f"{i:08}-{domain}.json").open('w') as f:
+                f.write(json.dumps(domain_info, indent=4))
+            if show_progress:
+                if i % cutoff_lines == 0:
+                    print(f"{i} {now()}: {domain} (Sitekick)", flush=True)
+                else:
+                    print('.', end='', flush=True)
+            domains_sent.add(domain)
+        except Exception as e:
+            print(f"{now()} Sitekick get_domain_info for {domain} failed with exception: {e}")
     print(f"\n{now()} Sitekick info on {len(domains)} domains stored in {queue_path}")
 
 

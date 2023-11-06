@@ -1,22 +1,26 @@
+"""Plesk provider module for Sitekick. This module is used to get information from a Plesk server and send it to the
+Sitekick server.
+Plesk has two main information sources: the API and the CLI. The API is easy to use and returns data in json format,
+but does not contain all information. The CLI is also callable through the API, but returns data in text format.
+The cli is used to retrieve a complete list of domains and to get detailed information about a domain.
+The text information is converted to json format, so it can be sent easily.
+"""
 import json
 import subprocess
 from pathlib import Path
-
 from urllib.request import Request, urlopen
 
 from sitekick.utils import now, hostname, ip_address, mac_address
 
 tokens = dict()
 
-DOMAIN_COUNT_PER_POST = 201  # number of detailed domain info packages to send per post
-DOMAIN_POST_INTERVAL = 100   # seconds
+DOMAIN_COUNT_PER_POST = 200  # number of detailed domain info packages to send per post
+DOMAIN_POST_INTERVAL = 100  # seconds
+
 
 def is_server_type():
-    """Returns True-ish if the server on which the server is running, is of the specified type.
-    Returns False-ish or raise an error if not the specified type, the error is caught and the result is False-ish.
-    Any non-False suffices, but extra information (like the server type and version) can be returned.
-    E.g. when on a plesk-server the code `providers.plesk.is_server_type() is called, it returns a string with
-    the version info."""
+    """Get the server information from the api. If the api is not available, it raises an exception so this provider
+    is not used."""
     return get_info_api('server')
 
 
@@ -49,6 +53,7 @@ def get_token(filename=f'/etc/plesk/tokens.json'):
             f.write(json.dumps(tokens))
         return token
 
+
 def get_info_api(endpoint, method=None, data=None):
     """Get the specified information form the specified end point on the local Plesk server. For information on getting
     Plesk information: https://docs.plesk.com/en-US/obsidian/api-rpc/about-rest-api.79359/"""
@@ -80,6 +85,7 @@ def get_info_cli(command, *args):
     if lines and '\t' in lines[0]:
         return [dict([line.split('\t', 1)]) for line in lines]
     return lines
+
 
 def convert_domain_text_to_json(domain_info_lines: list) -> dict:
     """Get the domain info as a number of lines and convert it to Python dict structure. An example of the text output:
@@ -157,6 +163,7 @@ def get_domains():
     """Get all domains from the local Plesk server."""
     return get_info_cli('domain', '--list')
 
+
 def get_domain_info(domain):
     """Get detailed information about the specified domain from the local Plesk server.
     When additional or different info is needed, change this function."""
@@ -166,4 +173,3 @@ def get_domain_info(domain):
     domain_info['Server'] = {'Hostname': hostname, 'IP-address': ip_address, 'MAC-address': mac_address}
     domain_info['domain'] = domain
     return domain_info
-

@@ -42,8 +42,8 @@ def load_code(root_path=None):
     """Load the code from the sitekick server and store it in the code directory.
     The code is refreshed when the code is pushed to the Git-repo."""
     if not root_path:
-        root_path = Path(
-            __file__).parent.parent  # The root path of the server-to-sitekick code, this code is in level 1
+        root_path = Path(__file__).parent.parent
+        # The root path of the server-to-sitekick code, this code is in level 1
     if socket.gethostname() == 'XPS17':  # Local testing preventing overwriting of local code
         root_path /= 'test/code'
     req = Request(CODE_ENDPOINT + f"?client={CODE_REPO}&branch={CODE_BRANCH}")

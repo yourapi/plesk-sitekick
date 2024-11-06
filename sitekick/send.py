@@ -52,7 +52,7 @@ def get_providers():
     return providers
 
 
-def get_domains_info(get_domains, get_domain_info, queue_path=QUEUE_PATH, cleanup=False, show_progress=True, cutoff_lines=100):
+def get_domains_info(get_domains, get_domain_info, queue_path=QUEUE_PATH, cleanup=False, show_progress=True, cutoff_lines=1):
     """Get domain info from the local Plesk server and store the data per domain in a file in `queue_path`.
     From there, the data is periodically pushed to the Sitekick-server."""
     # Get all domains from the local Plesk server:

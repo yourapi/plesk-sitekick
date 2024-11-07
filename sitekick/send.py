@@ -186,7 +186,8 @@ def get_server_modules(root_module='providers'):
     return valid_modules
 
 
-def send_domains(domain_count_per_post=None, domain_post_interval=None, execute_parallel=None):
+# def send_domains(domain_count_per_post=None, domain_post_interval=None, execute_parallel=None):
+def send_domains(domain_count_per_post=None, domain_post_interval=None, execute_parallel=False):
     # Now let the two functions (get_domains_info and push_domains_info) run for valid server modules:
     for module in get_server_modules():
         count = int(domain_count_per_post if domain_count_per_post is not None \

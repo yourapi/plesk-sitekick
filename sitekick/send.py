@@ -120,8 +120,8 @@ def push_domains_info(queue_path=QUEUE_PATH, count=DOMAIN_COUNT_PER_POST, interv
     while True:
         # Start with waiting to let files enter the directory:
         time_next = (time.time() // interval + 1) * interval + interval_offset
-        time.sleep(
-            max(time_next - time.time(), interval / 2))  # prevent edge cases, always sleep at least half the interval
+        # time.sleep(
+        #     max(time_next - time.time(), interval / 2))  # prevent edge cases, always sleep at least half the interval
         files_in_queue = list(Path(queue_path).glob('*'))
         files_in_queue.sort(key=lambda file: file.name)
         send_files = files_in_queue[:count]

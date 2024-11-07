@@ -103,7 +103,7 @@ def get_domains_info(get_domains, get_domain_info, queue_path=QUEUE_PATH, cleanu
 
 # def push_domains_info(queue_path=QUEUE_PATH, count=DOMAIN_COUNT_PER_POST, interval=DOMAIN_POST_INTERVAL,
 #                       interval_offset=None, attempts=10):
-def push_domains_info(queue_path=QUEUE_PATH, count=DOMAIN_COUNT_PER_POST, interval=5,
+def push_domains_info(queue_path=QUEUE_PATH, count=DOMAIN_COUNT_PER_POST, interval=2,
                       interval_offset=0, attempts=10):
     """Every `interval` seconds, get the files from the queue_path and push them to the Sitekick server.
     The `interval_offset` is used to start pushing after a certain number of seconds, when not specified, use the local
